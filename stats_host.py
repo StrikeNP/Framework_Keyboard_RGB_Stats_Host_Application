@@ -3,6 +3,7 @@ import hid
 import psutil
 import batteryinfo
 import subprocess
+import re
 
 from datetime import datetime
 from prettyprinter import pprint
@@ -67,8 +68,20 @@ if __name__ == '__main__':
             memory_stats = psutil.virtual_memory()
             mem_percentage_used = round(memory_stats.percent)
 
-            result = subprocess.run(['cat', '/sys/class/drm/card1/device/power_state'], stdout=subprocess.PIPE).stdout
-            d3Cold = 1 if "D3cold" in str(result) else 0
+            d3_query_result = subprocess.run(['cat', '/sys/class/drm/card1/device/power_state'], stdout=subprocess.PIPE).stdout
+
+            vol_query_result = subprocess.run(['amixer', 'sget', 'Master'], stdout=subprocess.PIPE).stdout
+            vol_query_result = str(vol_query_result)
+            # print(vol_query_result)
+            current_vol = int(re.search("(\\d+)%", vol_query_result)[1])
+            muted = 1 if "[off]" in vol_query_result else 0
+            print(f"Muted: {muted}")
+
+            wifi_query_result = str(subprocess.run(['ifconfig', 'wlp5s0'], stdout=subprocess.PIPE).stdout)
+            wifi_connected = 1 if "inet" in wifi_query_result else 0
+            print(f"Wifi connected: {wifi_connected}")
+
+            d3Cold = 1 if "D3cold" in str(d3_query_result) else 0
             time_since_last_T_read = datetime.now() - last_temp_reading
             if time_since_last_T_read.seconds > max_d0_temp_readrate and d3Cold == 0:
                 last_temp_reading = datetime.now()
@@ -76,10 +89,10 @@ if __name__ == '__main__':
             elif d3Cold == 1:
                 temp_stats = psutil.sensors_temperatures()
             cpu_temp = round(temp_stats["cros_ec"][3].current)
-            print(f"CPU: {cpu_percent}% {cpu_temp}c\tRAM: {mem_percentage_used}\tGPU D3Cold: {d3Cold} ({result})")
+            print(f"CPU: {cpu_percent}% {cpu_temp}c\tRAM: {mem_percentage_used}\tGPU D3Cold: {d3Cold} ({d3_query_result})")
 
 
-            pprint(temp_stats)
+            # pprint(temp_stats)
             print(f"Percent Full: {battery.percent}")
             print(f"State: {battery.state}")
             print(f"Energy Rate: {battery.energy_rate}")
@@ -89,11 +102,12 @@ if __name__ == '__main__':
             discharging = 0xFF
             if battery.state == "Discharging": discharging = 1
             elif battery.state == "Charging": discharging = 0
-            sys_data = [0x00, cpu_percent, mem_percentage_used, battery_watts, discharging, cpu_temp, d3Cold, battery_percent] # First byte is "channel id"
+            sys_data = [0x3F, cpu_percent, mem_percentage_used, battery_watts, discharging, cpu_temp, d3Cold, battery_percent, current_vol, muted, wifi_connected] # First byte is "channel id"
             # print(sys_data)
         
             send_raw_report(sys_data)
         except Exception as e:
             print(str(e))
+            # raise(e)
         # continue
         
