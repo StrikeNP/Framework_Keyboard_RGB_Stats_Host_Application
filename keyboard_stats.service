@@ -1,0 +1,11 @@
+[Unit]
+Description=Keyboard Stats
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/strike/qmk_firmware-with-stats-rgb_host_application
+ExecStart=/home/strike/.conda/envs/qmk/bin/python stats_host.py
+
+[Install]
+WantedBy=default.target
