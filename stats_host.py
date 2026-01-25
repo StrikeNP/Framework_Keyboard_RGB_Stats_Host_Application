@@ -4,6 +4,7 @@ import psutil
 import batteryinfo
 import subprocess
 
+from datetime import datetime
 from prettyprinter import pprint
 
 vendor_id     = 0x32ac
@@ -56,6 +57,10 @@ if __name__ == '__main__':
 
     battery = batteryinfo.Battery()
 
+    last_temp_reading = datetime.now()
+    temp_stats = psutil.sensors_temperatures()
+    max_d0_temp_readrate = 5
+
     while True:
         try:
             cpu_percent = round(psutil.cpu_percent(interval=1))
@@ -64,13 +69,17 @@ if __name__ == '__main__':
 
             result = subprocess.run(['cat', '/sys/class/drm/card1/device/power_state'], stdout=subprocess.PIPE).stdout
             d3Cold = 1 if "D3cold" in str(result) else 0
-
-            temp_stats = psutil.sensors_temperatures()
+            time_since_last_T_read = datetime.now() - last_temp_reading
+            if time_since_last_T_read.seconds > max_d0_temp_readrate and d3Cold == 0:
+                last_temp_reading = datetime.now()
+                temp_stats = psutil.sensors_temperatures()
+            elif d3Cold == 1:
+                temp_stats = psutil.sensors_temperatures()
             cpu_temp = round(temp_stats["cros_ec"][3].current)
             print(f"CPU: {cpu_percent}% {cpu_temp}c\tRAM: {mem_percentage_used}\tGPU D3Cold: {d3Cold} ({result})")
 
 
-            # pprint(temp_stats)
+            pprint(temp_stats)
             print(f"Percent Full: {battery.percent}")
             print(f"State: {battery.state}")
             print(f"Energy Rate: {battery.energy_rate}")
@@ -86,5 +95,5 @@ if __name__ == '__main__':
             send_raw_report(sys_data)
         except Exception as e:
             print(str(e))
-            continue
+        # continue
         
