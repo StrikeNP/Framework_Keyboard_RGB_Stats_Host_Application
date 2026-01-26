@@ -62,6 +62,11 @@ if __name__ == '__main__':
     temp_stats = psutil.sensors_temperatures()
     max_d0_temp_readrate = 5
 
+    gpu_pwr = 0
+    gpu_pwr_cap = 120
+    gpu_temp = 0
+    cpu_temp = 0
+
     while True:
         try:
             cpu_percent = round(psutil.cpu_percent(interval=1))
@@ -71,9 +76,7 @@ if __name__ == '__main__':
             d3_query_result = subprocess.run(['cat', '/sys/class/drm/card1/device/power_state'], stdout=subprocess.PIPE).stdout
             d3Cold = 1 if "D3cold" in str(d3_query_result) else 0
 
-            gpu_pwr = 0
-            gpu_pwr_cap = 120
-            
+
             time_since_last_T_read = datetime.now() - last_temp_reading
             if time_since_last_T_read.seconds > max_d0_temp_readrate and d3Cold == 0:
                 gpu_pwr_result = str(subprocess.run(['cat', '/sys/class/drm/card1/device/hwmon/hwmon9/power1_average'], stdout=subprocess.PIPE).stdout)
@@ -92,15 +95,15 @@ if __name__ == '__main__':
             wifi_connected = 1 if "inet" in wifi_query_result else 0
             # print(f"Wifi connected: {wifi_connected}")
 
-            gpu_temp = 0
             if time_since_last_T_read.seconds > max_d0_temp_readrate and d3Cold == 0:
                 last_temp_reading = datetime.now()
                 temp_stats = psutil.sensors_temperatures()
-                # gpu_temp = round(temp_stats["amdgpu"][1].current)
+                gpu_temp = round(temp_stats["amdgpu"][1].current)
+                cpu_temp = round(temp_stats["cros_ec"][3].current)
             elif d3Cold == 1:
                 temp_stats = psutil.sensors_temperatures()
-            
-            cpu_temp = round(temp_stats["cros_ec"][3].current)
+                cpu_temp = round(temp_stats["cros_ec"][3].current)
+                
             print(f"CPU: {cpu_percent}% {cpu_temp}c\tRAM: {mem_percentage_used}\tGPU D3Cold: {d3Cold} ({d3_query_result}) {gpu_temp}c")
 
 
