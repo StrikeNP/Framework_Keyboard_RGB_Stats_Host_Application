@@ -83,6 +83,8 @@ if __name__ == '__main__':
                 gpu_pwr = int(int(re.search("(\\d+)", str(gpu_pwr_result))[1]) / 1000000)
                 gpu_pwr_cap_result = str(subprocess.run(['cat', '/sys/class/drm/card1/device/hwmon/hwmon9/power1_cap'], stdout=subprocess.PIPE).stdout)
                 gpu_pwr_cap = int(int(re.search("(\\d+)", str(gpu_pwr_cap_result))[1]) / 1000000)
+            elif d3Cold == 1:
+                gpu_pwr = 0
             # print(f"GPU Power: {gpu_pwr}/{gpu_pwr_cap}")
 
             vol_query_result = subprocess.run(['amixer', 'sget', 'Master'], stdout=subprocess.PIPE).stdout
