@@ -17,11 +17,14 @@ report_length = 32
 
 def get_raw_hid_interface():
     device_interfaces = hid.enumerate(vendor_id, product_id)
-    raw_hid_interfaces = [i for i in device_interfaces if i['usage_page'] == usage_page and i['usage'] == usage]
-
+    #raw_hid_interfaces = [i for i in device_interfaces if i['usage_page'] == usage_page and i['usage'] == usage]
+    raw_hid_interfaces = [i for i in device_interfaces]
+    
+    pprint(raw_hid_interfaces)
     if len(raw_hid_interfaces) == 0:
         return None
 
+    #interface = hid.Device(path=raw_hid_interfaces[0]['path'])
     interface = hid.Device(path=raw_hid_interfaces[0]['path'])
 
     print(f"Manufacturer: {interface.manufacturer}")
@@ -87,9 +90,11 @@ if __name__ == '__main__':
                 gpu_pwr = 0
             # print(f"GPU Power: {gpu_pwr}/{gpu_pwr_cap}")
 
-            vol_query_result = subprocess.run(['amixer', 'sget', 'Master'], stdout=subprocess.PIPE).stdout
-            vol_query_result = str(vol_query_result)
-            current_vol = int(re.search("(\\d+)%", vol_query_result)[1])
+            #vol_query_result = subprocess.run(['amixer', 'sget', 'Master'], stdout=subprocess.PIPE).stdout
+            #vol_query_result = str(vol_query_result)
+            #current_vol = int(re.search("(\\d+)%", vol_query_result)[1])
+            vol_query_result = "unsupported"
+            current_vol = -1
             muted = 1 if "[off]" in vol_query_result else 0
             # print(f"Muted: {muted}")
 
