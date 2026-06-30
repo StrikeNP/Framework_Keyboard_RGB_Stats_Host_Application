@@ -2,10 +2,24 @@
 
 REPORT_LENGTH=32
 GPU_UPDATE_INTERVAL=10
+GPU_LAST_UPDATE=0
+GPU_HWMON=""
+gpu_power=0
+gpu_cap=1
+gpu_temp=0
+d3cold=0
+muted=0
+cpu_percent=0
+mem_percent=0
+battery_percent=0
+battery_watts=0
+discharging=255
+cpu_temp=0
+wifi=0
+
 
 #
-# -------------------------
-# Utilities
+# ------------------------- # Utilities
 # -------------------------
 #
 
@@ -198,25 +212,26 @@ read_memory() {
 # CPU temperature
 # -------------------------
 #
-
 read_cpu_temp() {
     cpu_temp=0
 
-    for z in /sys/class/thermal/thermal_zone*/temp; do
-        [[ -f "$z" ]] || continue
-        type_file="${z%temp}type"
-
-        if [[ -f "$type_file" ]]; then
-            type=$(<"$type_file")
-            if [[ "$type" == *"cpu"* || "$type" == *"x86_pkg_temp"* ]]; then
-                cpu_temp=$(($(<"$z")/1000))
-                break
-            fi
-        fi
+    for hw in /sys/class/hwmon/hwmon*; do
+        [[ -r "$hw/name" ]] || continue
+        case "$(cat "$hw/name")" in
+            k10temp|coretemp)
+                for t in "$hw"/temp*_input; do
+                    [[ -r "$t" ]] || continue
+                    temp=$(<"$t")
+                    (( temp > cpu_temp )) && cpu_temp=$((temp / 1000))
+                done
+                return
+                ;;
+        esac
     done
-
-    cpu_temp=$(clamp_u8 "$cpu_temp")
 }
+
+
+
 
 #
 # -------------------------
@@ -224,12 +239,6 @@ read_cpu_temp() {
 # -------------------------
 #
 
-GPU_LAST_UPDATE=0
-GPU_HWMON=""
-gpu_power=0
-gpu_cap=1
-gpu_temp=0
-d3cold=0
 
 select_gpu() {
     GPU_HWMON=""
@@ -328,16 +337,7 @@ update_gpu_if_needed() {
 init_hid
 
 while true; do
-
-    muted=0
-    cpu_percent=0
-    mem_percent=0
-    battery_percent=0
-    battery_watts=0
-    discharging=255
-    cpu_temp=0
-    wifi=0
-
+    
     read_cpu
     read_memory
     read_battery
@@ -346,15 +346,21 @@ while true; do
     read_cpu_temp
     update_gpu_if_needed
 
-    printf "CPU:%3d%% RAM:%3d%% GPU:%3dW/%2dW %d°C BAT:%3d%% D3:%d Muted:%1d\n" \
-        "$cpu_percent" \
-        "$mem_percent" \
-        "$gpu_power" \
-        "$gpu_cap" \
-        "$gpu_temp" \
-        "$battery_percent" \
-        "$d3cold" \
-        "$muted" \
+	printf "CPU:%02X MEM:%02X BATT_W:%02X DISCHARGING:%02X CPU_TEMP:%02X D3COLD:%02X VOLUME:%02X BATT:%%:%02X MUTED:%02X WIFI:%02X GPU_POWER:%02X GPU_CAP:%02X GPU_TEMP:%02X\n" \
+    "$cpu_percent" \
+    "$mem_percent" \
+    "$battery_watts" \
+    "$discharging" \
+    "$cpu_temp" \
+    "$d3cold" \
+    255 \
+    "$battery_percent" \
+    "$muted" \
+    "$wifi" \
+    "$gpu_power" \
+    "$gpu_cap" \
+    "$gpu_temp"
+
 
     packet=(
         07 3F
@@ -364,7 +370,7 @@ while true; do
         $(printf "%02X" "$discharging")
         $(printf "%02X" "$cpu_temp")
         $(printf "%02X" "$d3cold")
-	FF
+	FF # Volume level, 0-100. Not supported by keyboard yet, so not implemented.
         $(printf "%02X" "$battery_percent")
         $(printf "%02X" "$muted")
         $(printf "%02X" "$wifi")
@@ -381,6 +387,7 @@ while true; do
     for b in "${packet[@]}"; do
         hex+="\\x$b"
     done
+    echo "$hex"
 
     if [[ -n "$HID" ]]; then
         printf '%b' "$hex" >"$HID" || echo "write failed: $?"
