@@ -1,0 +1,14 @@
+#!/sbin/openrc-run
+# Copyright 1999-2023 Gentoo Authors
+# Distributed under the terms of the GNU General Public License v2
+
+name="kb-stats-host"
+description="Sends device statistics to the Framework 16 RGB keyboard."
+
+pidfile="/run/kb-stats-host.pid"
+command="bash /home/strike/Framework_Keyboard_RGB_Stats_Host_Application/stats_host.sh"
+command_background=true
+
+start_pre() {
+	checkpath -f /home/strike/Framework_Keyboard_RGB_Stats_Host_Application/stats_host.sh
+}
