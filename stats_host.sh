@@ -222,12 +222,13 @@ read_cpu_temp() {
                 for t in "$hw"/temp*_input; do
                     [[ -r "$t" ]] || continue
                     temp=$(<"$t")
-                    (( temp > cpu_temp )) && cpu_temp=$((temp / 1000))
+                    (( temp > cpu_temp )) && cpu_temp=$temp
                 done
-                return
                 ;;
         esac
     done
+
+    cpu_temp=$((cpu_temp / 1000))
 }
 
 
